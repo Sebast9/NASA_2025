@@ -1,4 +1,15 @@
 import pandas as pd
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+import numpy as np
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import chi2_contingency
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
 
 KOI_raw_data = pd.read_csv('Data/KOI_data_cumulative_2025.09.22_07.28.01.csv',skiprows=144)
 TOI_raw_data = pd.read_csv('Data/TOI_data_2025.09.22_07.28.57.csv', skiprows=90)
@@ -23,7 +34,8 @@ useless_columns_KOI = [
     'koi_srad_err2', 'koi_smass_err1', 'koi_smass_err2', 'koi_sage_err1', 'koi_sage_err2',
 ]
 useless_columns_TOI = ['toi','raerr1','raerr2','decerr1','decerr2','st_pmralim','st_pmrasymerr','st_pmdeclim','st_pmdecsymerr','pl_tranmidlim','pl_tranmidsymerr','pl_orbperlim','pl_orbpersymerr','pl_trandurhlim','pl_trandurhsymerr','pl_trandeplim','pl_trandepsymerr','pl_radelim','pl_radesymerr','pl_insolerr1','pl_insolerr2',
-                   'pl_insollim','pl_insolsymerr','pl_eqterr1','pl_eqterr2','pl_eqtlim','pl_eqtsymerr','st_tmaglim','st_tmagsymerr', 'st_distlim','st_distsymerr','st_tefflim','st_teffsymerr','st_logglim','st_loggsymerr','st_radlim','st_radsymerr','toi_created','rowupdate']
+                   'pl_insollim','pl_insolsymerr','pl_eqterr1','pl_eqterr2','pl_eqtlim','pl_eqtsymerr','st_tmaglim','st_tmagsymerr', 'st_distlim','st_distsymerr','st_tefflim','st_teffsymerr','st_logglim','st_loggsymerr','st_radlim','st_radsymerr','toi_created','rowupdate','rowid','pl_pnum','st_pmraerr2','st_pmdecerr2',
+                   'pl_tranmiderr2','pl_orbpererr2','pl_trandurherr2','pl_trandeperr2','pl_radeerr2','st_tmagerr2','st_disterr2','st_tefferr2','st_loggerr2','st_raderr2','rastr','decstr']
 
 useless_columns_K2 = ['disp_refname','discoverymethod','disc_year','disc_refname','disc_pubdate','disc_locale','disc_facility','disc_telescope','disc_instrument','pul_flag','ptv_flag','tran_flag','ast_flag','obm_flag','micro_flag','etv_flag','ima_flag','dkin_flag','soltype','pl_controv_flag','pl_refname','pl_orbperlim','pl_orbsmax',
                       'pl_orbsmaxerr1','pl_orbsmaxerr2','pl_orbsmaxlim','pl_radelim','pl_radjlim','pl_masse','pl_masseerr1','pl_masseerr2','pl_masselim','pl_massj','pl_massjerr1','pl_massjerr2','pl_massjlim','pl_msinie','pl_msinieerr1','pl_msinieerr2','pl_msinielim','pl_msinij','pl_msinijerr1','pl_msinijerr2','pl_msinijlim',
@@ -36,10 +48,63 @@ useless_columns_K2 = ['disp_refname','discoverymethod','disc_year','disc_refname
                       'sy_plxerr2','sy_bmagerr2','sy_vmagerr2','sy_jmagerr2','sy_hmagerr2','sy_kmagerr2','sy_umag','sy_umagerr1','sy_umagerr2','sy_gmag','sy_gmagerr1','sy_gmagerr2','sy_rmag','sy_rmagerr1','sy_rmagerr2','sy_imag','sy_imagerr1','sy_imagerr2','sy_zmag','sy_zmagerr1','sy_zmagerr2','sy_w1magerr2','sy_w2magerr2',
                       'sy_w3magerr2','sy_w4magerr1','sy_w4magerr2','sy_gaiamagerr2','sy_icmag','sy_icmagerr1','sy_icmagerr2','sy_tmagerr2','sy_kepmagerr1','sy_kepmagerr2','rowupdate','pl_pubdate','releasedate','pl_nnotes','k2_campaigns','k2_campaigns_num','st_nphot','st_nrvc','st_nspec','pl_nespec','pl_ntranspec','pl_ndispec']
 
+# Drop useless columns
 df_KOI = KOI_raw_data.drop(columns=useless_columns_KOI)
 df_TOI = TOI_raw_data.drop(columns=useless_columns_TOI)
 df_K2 = K2_raw_data.drop(columns=useless_columns_K2)
 
-print(df_KOI.shape)
-print(df_TOI.shape)
+# Convert into dummies the categorical target
+original_columns = df_TOI.columns
+df_TOI_encoded = pd.get_dummies(df_TOI, columns=['tfopwg_disp'], dummy_na=False, prefix='state')
 print(df_K2.shape)
+
+# Impute the missing Data
+
+imputer = IterativeImputer(max_iter=10, random_state=0)
+df_TOI_imputado = pd.DataFrame(imputer.fit_transform(df_TOI_encoded), columns=df_TOI_encoded.columns)
+print(df_TOI_imputado)
+
+encoded_columns = [col for col in df_TOI_imputado.columns if col.startswith('state_')]
+
+columnas_originales = [col for col in df_TOI_imputado.columns if col not in encoded_columns]
+
+decoded_series = df_TOI_imputado[encoded_columns].idxmax(axis=1)
+
+df_TOI['tfopwg_disp_imputed'] = decoded_series.str.replace('state_', '')
+
+final_df = df_TOI_imputado[columnas_originales].copy()
+final_df['tfopwg_disp'] = df_TOI['tfopwg_disp_imputed']
+
+# Split Data for the model
+
+X = final_df.drop('tfopwg_disp', axis=1)
+y = final_df['tfopwg_disp']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y,
+                                                    test_size = 0.2,
+                                                    random_state = 1,
+                                                    stratify = y)
+
+sc = StandardScaler()
+sc.fit(X_train)
+
+X_train_std = (sc.transform(X_train))
+X_test_std = (sc.transform(X_test))
+
+from sklearn.ensemble import RandomForestClassifier
+
+forest = RandomForestClassifier(n_estimators=50,
+                                criterion='gini',
+                                max_features='sqrt',
+                                max_depth=20)
+
+forest.fit(X_train_std, y_train)
+
+print('Train Accuracy : %.5f' % forest.score(X_train_std, y_train))
+print('Test Accuracy : %.5f' % forest.score(X_test_std, y_test))
+
+y_pred = forest.predict(X_test_std)
+cm = confusion_matrix(y_test, y_pred, normalize='true')
+
+cm_display = ConfusionMatrixDisplay(cm)
+cm_display.plot()
