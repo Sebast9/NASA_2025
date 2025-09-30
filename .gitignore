@@ -1,0 +1,54 @@
+# =====================================
+# Python
+# =====================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de entorno virtual
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# =====================================
+# Jupyter Notebooks
+# =====================================
+.ipynb_checkpoints
+
+# =====================================
+# Archivos de configuración / IDEs
+# =====================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =====================================
+# Logs y temporales
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.tmp
+*.temp
+
+# =====================================
+# MacOS / Windows
+# =====================================
+.DS_Store
+Thumbs.db
+
+# =====================================
+# Archivos de dependencias locales
+# =====================================
+pip-log.txt
+pip-delete-this-directory.txt
+
+# =====================================
+# Otros
+dist/
+build/
+*.egg-info/
