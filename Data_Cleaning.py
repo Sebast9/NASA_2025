@@ -10,6 +10,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import ConfusionMatrixDisplay
+import joblib
+from sklearn.ensemble import RandomForestClassifier
+from fastapi import FastAPI
 
 KOI_raw_data = pd.read_csv('Data/KOI_data_cumulative_2025.09.22_07.28.01.csv',skiprows=144)
 TOI_raw_data = pd.read_csv('Data/TOI_data_2025.09.22_07.28.57.csv', skiprows=90)
@@ -91,8 +94,6 @@ sc.fit(X_train)
 X_train_std = (sc.transform(X_train))
 X_test_std = (sc.transform(X_test))
 
-from sklearn.ensemble import RandomForestClassifier
-
 forest = RandomForestClassifier(n_estimators=50,
                                 criterion='gini',
                                 max_features='sqrt',
@@ -100,8 +101,16 @@ forest = RandomForestClassifier(n_estimators=50,
 
 forest.fit(X_train_std, y_train)
 
+# Imprimir Accuracy del modelo
+
 print('Train Accuracy : %.5f' % forest.score(X_train_std, y_train))
 print('Test Accuracy : %.5f' % forest.score(X_test_std, y_test))
+
+# Guardar el modelo
+
+joblib.dump(forest, "random_forest_TOI_model.pkl")
+
+
 
 y_pred = forest.predict(X_test_std)
 cm = confusion_matrix(y_test, y_pred, normalize='true')
