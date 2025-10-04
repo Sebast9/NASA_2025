@@ -14,6 +14,8 @@ import joblib
 from sklearn.ensemble import RandomForestClassifier
 from fastapi import FastAPI
 
+#
+
 KOI_raw_data = pd.read_csv('Data/KOI_data_cumulative_2025.09.22_07.28.01.csv',skiprows=144)
 TOI_raw_data = pd.read_csv('Data/TOI_data_2025.09.22_07.28.57.csv', skiprows=90)
 K2_raw_data = pd.read_csv('Data/K2_data_k2pandc_2025.09.22_07.31.46.csv',skiprows=298)
@@ -106,7 +108,7 @@ forest.fit(X_train_std, y_train)
 print('Train Accuracy : %.5f' % forest.score(X_train_std, y_train))
 print('Test Accuracy : %.5f' % forest.score(X_test_std, y_test))
 
-# Guardar el modelo
+# Guardar el modeloo
 
 joblib.dump(forest, "random_forest_TOI_model.pkl")
 
