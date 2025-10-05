@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Prueba Exoplanet API</title>
+</head>
+<body>
+  <h1>Predicción de Exoplanetas</h1>
+
+  <form id="uploadForm">
+    <label for="tipo">Tipo de dataset:</label>
+    <select id="tipo" name="tipo">
+      <option value="TOI">TOI</option>
+      <option value="KOI">KOI</option>
+      <option value="K2">K2</option>
+    </select>
+    <br><br>
+
+    <label for="file">Selecciona un archivo (.csv o .xlsx):</label>
+    <input type="file" id="file" name="file" required />
+    <br><br>
+
+    <button type="submit">Enviar al API</button>
+  </form>
+
+  <h2>Resultado</h2>
+  <pre id="output"></pre>
+
+  <script>
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const fileInput = document.getElementById("file");
+      const tipo = document.getElementById("tipo").value;
+      if (!fileInput.files.length) {
+        alert("Selecciona un archivo");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      try {
+        const res = await fetch(`http://localhost:8000/predict-excel?tipo=${tipo}`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("output").textContent = "Error: " + err;
+      }
+    });
+  </script>
+</body>
+</html>
