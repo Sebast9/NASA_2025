@@ -5,8 +5,12 @@
   "dependencies": {
     "@ai-sdk/google": "^2.0.17",
     "@ai-sdk/react": "^2.0.60",
+    "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "ai": "^5.0.60",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
     "recharts": "^3.2.1"
   }
 }

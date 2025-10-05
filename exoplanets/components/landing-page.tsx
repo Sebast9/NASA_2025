@@ -156,7 +156,7 @@ export function LandingPage({ onApiResponse }: LandingPageProps) {
         <div className="grid gap-6 sm:grid-cols-3">
           <Card className="border-border/50 bg-card/50 p-6">
             <h3 className="mb-2 font-semibold">Paso 1</h3>
-            <p className="text-sm text-muted-foreground">Sube tu archivo CSV o Excel con datos de exoplanetas</p>
+            <p className="text-sm text-muted-foreground">Sube tu archivo CSV o Excel con el formato recomendado</p>
           </Card>
           <Card className="border-border/50 bg-card/50 p-6">
             <h3 className="mb-2 font-semibold">Paso 2</h3>

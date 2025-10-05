@@ -14,7 +14,7 @@ export function ChatBot() {
   const [inputValue, setInputValue] = useState("")
 
   const { messages, sendMessage, status } = useChat({
-  transport: new DefaultChatTransport({ api: "exoplanets\app\Gemini\route.ts" }),
+  transport: new DefaultChatTransport({ api: "/api/chatbot/chat" }),
 })
 
   const handleSubmit = (e: React.FormEvent) => {
