@@ -1,36 +1,75 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
+import React, { useState } from "react"
 import { MessageCircle, X, Send, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 
+type Message = {
+  role: "user" | "assistant"
+  text: string
+}
+
 export function ChatBot() {
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
+  const [messages, setMessages] = useState<Message[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const { messages, sendMessage, status } = useChat({
-  transport: new DefaultChatTransport({ api: "/api/chatbot/chat" }),
-})
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inputValue.trim() || status === "streaming") return
+    if (!inputValue.trim() || isLoading) return
 
-    sendMessage({ text: inputValue })
+    const userMessage: Message = { role: "user", text: inputValue }
+    setMessages((prev) => [...prev, userMessage])
     setInputValue("")
+    setIsLoading(true)
+
+    try {
+      const res = await fetch("/api/chatbot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: inputValue }),
+      })
+
+      const data = await res.json()
+
+      const aiMessage: Message = {
+        role: "assistant",
+        text: data.summary || "No response",
+      }
+
+      setMessages((prev) => [...prev, aiMessage])
+    } catch (error) {
+      console.error("Error sending message:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const openChat = () => {
+    setIsOpen(true)
+
+    // Si no hay mensajes, muestra el mensaje inicial
+    if (messages.length === 0) {
+      setMessages([
+        {
+          role: "assistant",
+          text: "Hola, ¿en qué puedo ayudarte hoy?",
+        },
+      ])
+    }
   }
 
   return (
     <>
-      {/* Floating Chat Button */}
+      {/* Botón flotante */}
       {!isOpen && (
         <Button
-          onClick={() => setIsOpen(true)}
+          onClick={openChat}
           className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl glow bg-primary hover:bg-primary/90 transition-all hover:scale-110"
           size="icon"
         >
@@ -38,7 +77,7 @@ export function ChatBot() {
         </Button>
       )}
 
-      {/* Chat Modal */}
+      {/* Modal del chat */}
       {isOpen && (
         <div className="fixed bottom-6 right-6 z-50 w-[380px] h-[500px] flex flex-col">
           <Card className="flex flex-col h-full border-2 border-primary/30 bg-background/95 backdrop-blur-xl shadow-2xl glow">
@@ -58,44 +97,24 @@ export function ChatBot() {
               </Button>
             </div>
 
-            {/* Messages */}
+            {/* Mensajes */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 && (
-                <div className="text-center text-sm text-muted-foreground py-8">
-                  <Sparkles className="h-8 w-8 mx-auto mb-2 text-primary/50" />
-                  <p>¡Hola! Soy tu asistente de exoplanetas.</p>
-                  <p className="mt-1">Pregúntame sobre los resultados o conceptos.</p>
-                </div>
-              )}
-
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                >
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                      message.role === "user"
+                      msg.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-foreground border border-border/50"
                     }`}
                   >
-                    {message.parts.map((part, index) => {
-                      if (part.type === "text") {
-                        return (
-                          <p key={index} className="text-sm whitespace-pre-wrap">
-                            {part.text}
-                          </p>
-                        )
-                      }
-                      return null
-                    })}
+                    <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                   </div>
                 </div>
               ))}
 
-              {/* Typing indicator */}
-              {status === "streaming" && (
+              {/* Indicador de escritura */}
+              {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-muted border border-border/50 rounded-2xl px-4 py-2">
                     <div className="flex gap-1">
@@ -115,13 +134,13 @@ export function ChatBot() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder="Escribe tu pregunta..."
-                  disabled={status === "streaming"}
+                  disabled={isLoading}
                   className="flex-1 border-border/50 bg-background/50 focus:border-primary/50"
                 />
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={!inputValue.trim() || status === "streaming"}
+                  disabled={!inputValue.trim() || isLoading}
                   className="glow bg-primary hover:bg-primary/90"
                 >
                   <Send className="h-4 w-4" />
