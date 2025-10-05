@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { ChatBot } from "@/components/chatbot"
 import { useCallback, useState } from "react"
 import { Upload, FileText, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -168,6 +168,7 @@ export function LandingPage({ onApiResponse }: LandingPageProps) {
           </Card>
         </div>
       </div>
+      <ChatBot />
     </div>
   )
 }

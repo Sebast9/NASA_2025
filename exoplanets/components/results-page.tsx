@@ -1,15 +1,29 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { ArrowLeft, Download, Search, ArrowUpDown, Sparkles, TrendingDown, Target, CheckCircle2 } from "lucide-react"
+import { useState, useMemo, useEffect } from "react"
+import {
+  ArrowLeft,
+  Download,
+  Search,
+  ArrowUpDown,
+  Sparkles,
+  TrendingDown,
+  Target,
+  CheckCircle2,
+  BarChart3,
+  X,
+  Trophy,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import Papa from "papaparse"
 import type { PredictionResult, APIResponse } from "@/app/page"
+import { ChatBot } from "@/components/chatbot"
 
 interface ResultsPageProps {
   results: PredictionResult[]
@@ -22,6 +36,9 @@ export function ResultsPage({ results, metadata, onBack }: ResultsPageProps) {
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("confidence")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [showCharts, setShowCharts] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 50
 
   const filteredAndSorted = useMemo(() => {
     const filtered = results.filter((row) => {
@@ -47,6 +64,53 @@ export function ResultsPage({ results, metadata, onBack }: ResultsPageProps) {
     return filtered
   }, [results, searchTerm, filterStatus, sortBy, sortOrder])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterStatus, sortBy, sortOrder])
+
+  const paginatedResults = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return filteredAndSorted.slice(startIndex, endIndex)
+  }, [filteredAndSorted, currentPage, itemsPerPage])
+
+  const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage)
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = []
+    const maxVisible = 5
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i)
+        }
+        pages.push("...")
+        pages.push(totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1)
+        pages.push("...")
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i)
+        }
+      } else {
+        pages.push(1)
+        pages.push("...")
+        pages.push(currentPage - 1)
+        pages.push(currentPage)
+        pages.push(currentPage + 1)
+        pages.push("...")
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
+  }
+
   const stats = useMemo(() => {
     const falsePositive = results.filter((r) => r.prediction === "FALSE POSITIVE").length
     const candidate = results.filter((r) => r.prediction === "CANDIDATE").length
@@ -55,6 +119,59 @@ export function ResultsPage({ results, metadata, onBack }: ResultsPageProps) {
 
     return { falsePositive, candidate, confirmed, avgConfidence: avgConfidence.toFixed(1) }
   }, [results])
+
+  const topTypes = useMemo(() => {
+    const typeCounts = new Map<string, number>()
+
+    results.forEach((r) => {
+      const count = typeCounts.get(r.prediction) || 0
+      typeCounts.set(r.prediction, count + 1)
+    })
+
+    const sortedTypes = Array.from(typeCounts.entries())
+      .map(([type, count]) => ({
+        type,
+        count,
+        percentage: ((count / results.length) * 100).toFixed(1),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    return sortedTypes
+  }, [results])
+
+  const chartData = useMemo(() => {
+    const pieData = [
+      { name: "Falsos Positivos", value: stats.falsePositive, color: "#ef4444" },
+      { name: "Candidatos", value: stats.candidate, color: "#22c55e" },
+      { name: "Confirmados", value: stats.confirmed, color: "#eab308" },
+    ]
+
+    const barData = [
+      { name: "Falsos Positivos", count: stats.falsePositive, fill: "#ef4444" },
+      { name: "Candidatos", count: stats.candidate, fill: "#22c55e" },
+      { name: "Confirmados", count: stats.confirmed, fill: "#eab308" },
+    ]
+
+    const confidenceBuckets = [
+      { range: "0-20%", count: 0 },
+      { range: "20-40%", count: 0 },
+      { range: "40-60%", count: 0 },
+      { range: "60-80%", count: 0 },
+      { range: "80-100%", count: 0 },
+    ]
+
+    results.forEach((r) => {
+      const conf = r.confidence * 100
+      if (conf <= 20) confidenceBuckets[0].count++
+      else if (conf <= 40) confidenceBuckets[1].count++
+      else if (conf <= 60) confidenceBuckets[2].count++
+      else if (conf <= 80) confidenceBuckets[3].count++
+      else confidenceBuckets[4].count++
+    })
+
+    return { pieData, barData, confidenceBuckets }
+  }, [results, stats])
 
   const handleExport = () => {
     const exportData = filteredAndSorted.map((row) => ({
@@ -91,6 +208,14 @@ export function ResultsPage({ results, metadata, onBack }: ResultsPageProps) {
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Nuevo Análisis
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowCharts(true)}
+              className="border-border/50 hover:border-primary/50 transition-all bg-transparent"
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Visualizar Gráficas
             </Button>
             <Button className="glow bg-primary hover:bg-primary/90 transition-all" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
@@ -223,7 +348,7 @@ export function ResultsPage({ results, metadata, onBack }: ResultsPageProps) {
             <div className="overflow-x-auto rounded-lg border border-border/50">
               <Table className="table-auto">
                 <TableHeader>
-                  <TableRow className="border-border/50 hover:bg-muted/30">
+                  <TableRow className="border-border/30 hover:bg-muted/30">
                     <TableHead className="font-semibold text-foreground text-center px-4 py-3 whitespace-nowrap">
                       ID
                     </TableHead>
@@ -236,7 +361,7 @@ export function ResultsPage({ results, metadata, onBack }: ResultsPageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAndSorted.map((row, idx) => (
+                  {paginatedResults.map((row, idx) => (
                     <TableRow key={idx} className="border-border/30 hover:bg-muted/20 transition-colors">
                       <TableCell className="font-mono text-sm text-center px-4 py-3 whitespace-nowrap">
                         {row.id}
@@ -276,12 +401,140 @@ export function ResultsPage({ results, metadata, onBack }: ResultsPageProps) {
               </Table>
             </div>
 
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Mostrando <span className="font-semibold text-foreground">{filteredAndSorted.length}</span> de{" "}
-              <span className="font-semibold text-foreground">{results.length}</span> resultados
-            </p>
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                Mostrando <span className="font-semibold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span>{" "}
+                -{" "}
+                <span className="font-semibold text-foreground">
+                  {Math.min(currentPage * itemsPerPage, filteredAndSorted.length)}
+                </span>{" "}
+                de <span className="font-semibold text-foreground">{filteredAndSorted.length}</span> resultados
+              </p>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="border-border/50 hover:border-primary/50 transition-all disabled:opacity-50"
+                  >
+                    Anterior
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers().map((page, idx) => (
+                      <Button
+                        key={idx}
+                        variant={page === currentPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => typeof page === "number" && setCurrentPage(page)}
+                        disabled={typeof page === "string"}
+                        className={
+                          page === currentPage
+                            ? "bg-primary hover:bg-primary/90 min-w-[40px]"
+                            : "border-border/50 hover:border-primary/50 transition-all min-w-[40px]"
+                        }
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="border-border/50 hover:border-primary/50 transition-all disabled:opacity-50"
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </Card>
+
+        {showCharts && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-background border-2 border-primary/30 rounded-xl shadow-2xl">
+              <div className="sticky top-0 z-10 flex items-center justify-between p-6 bg-background/95 backdrop-blur-sm border-b border-border/50">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <BarChart3 className="h-6 w-6 text-primary" />
+                  Visualización de Resultados
+                </h2>
+                <Button variant="ghost" size="icon" onClick={() => setShowCharts(false)} className="hover:bg-muted/50">
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <div className="space-y-8 p-6">
+                <Card className="p-6 border-border/50">
+                  <h3 className="text-lg font-semibold mb-4">Distribución de Predicciones</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={chartData.pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }: { name: string; percent: number }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {chartData.pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Card>
+
+                <Card className="p-6 border-border/50">
+                  <h3 className="text-lg font-semibold mb-4">Comparación de Conteos</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={chartData.barData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                      <XAxis dataKey="name" stroke="#888" />
+                      <YAxis stroke="#888" />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
+                        labelStyle={{ color: "#fff" }}
+                      />
+                      <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                        {chartData.barData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+
+                <Card className="p-6 border-border/50">
+                  <h3 className="text-lg font-semibold mb-4">Distribución de Confianza</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={chartData.confidenceBuckets}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                      <XAxis dataKey="range" stroke="#888" />
+                      <YAxis stroke="#888" />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
+                        labelStyle={{ color: "#fff" }}
+                      />
+                      <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ChatBot />
       </div>
     </div>
   )

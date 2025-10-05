@@ -1,5 +1,12 @@
 {
   "devDependencies": {
     "@types/papaparse": "^5.3.16"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^2.0.17",
+    "@ai-sdk/react": "^2.0.60",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "ai": "^5.0.60",
+    "recharts": "^3.2.1"
   }
 }
